@@ -1,0 +1,46 @@
+Resources:
+  myInstance: 
+        Type: AWS::EC2::Instance
+        Properties:
+          InstanceType: t3.micro
+          ImageId: !Ref AMItoUse
+          NetworkInterfaces: 
+            - AssociatePublicIpAddress: "true"
+              DeviceIndex: "0"
+              GroupSet: 
+                - Ref: "myWebAccessSecurityGroup"
+              SubnetId: 
+                Ref: "PublicSubnet"
+    
+    WebAppLaunchConfig:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+          UserData:
+            Fn::Base64: !Sub |
+              #!/bin/bash
+              sudo apt-get update -y
+              sudo apt-get install apache2 -y
+              sudo systemctl start apache2.service          
+          # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
+          ImageId: ami-08fdec01f5df9998f
+          # ToDo: Change the key-pair name, as applicable to you. 
+          KeyName: nd9990_keypair
+          #SecurityGroups:
+          #- Ref: WebServerSecGroup
+          InstanceType: t3.medium
+          BlockDeviceMappings:
+          - DeviceName: "/dev/sdk"
+            Ebs:
+              VolumeSize: '10'
+    WebAppGroup:
+      Type: AWS::AutoScaling::AutoScalingGroup
+      Properties:
+        VPCZoneIdentifier:
+        - Fn::ImportValue: 
+            !Sub "${EnvironmentName}-PRIV-NETS"
+        LaunchConfigurationName:
+          Ref: WebAppLaunchConfig
+        MinSize: '4'
+        MaxSize: '6'
+        TargetGroupARNs:
+        - Ref: WebAppTargetGroup
